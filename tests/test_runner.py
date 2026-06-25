@@ -1,5 +1,5 @@
 import subprocess
-from auto_prompter.runner import build_command, run_job
+from auto_prompter.runner import build_command, run_job, _need_shell
 
 
 def test_build_command_new_chat():
@@ -21,7 +21,7 @@ def test_run_job_success(tmp_path):
     job = {"id": "j1", "prompt": "hi", "target": {"type": "new", "folder": "/x"}}
     calls = {}
 
-    def fake_run(argv, cwd, stdout, stderr, text):
+    def fake_run(argv, cwd, stdout, stderr, text, shell=False):
         calls["argv"] = argv
         calls["cwd"] = cwd
         stdout.write("ok output")
@@ -36,7 +36,7 @@ def test_run_job_success(tmp_path):
 def test_run_job_nonzero_is_failed(tmp_path):
     job = {"id": "j1", "prompt": "hi", "target": {"type": "new", "folder": "/x"}}
 
-    def fake_run(argv, cwd, stdout, stderr, text):
+    def fake_run(argv, cwd, stdout, stderr, text, shell=False):
         return subprocess.CompletedProcess(argv, 2)
 
     result = run_job(job, tmp_path, which=lambda _: "/bin/claude", run=fake_run)
@@ -48,3 +48,17 @@ def test_run_job_missing_binary_is_failed(tmp_path):
     result = run_job(job, tmp_path, which=lambda _: None, run=None)
     assert result["status"] == "failed"
     assert "not found" in (tmp_path / result["log_path"].split("/")[-1]).read_text().lower()
+
+
+def test_run_job_uses_shell_for_windows_cmd(tmp_path, monkeypatch):
+    # Test the _need_shell helper directly to avoid pathlib.WindowsPath issues
+    # on non-Windows hosts when os.name is monkeypatched.
+    assert _need_shell("C:\\tools\\claude.cmd", os_name="nt") is True
+    assert _need_shell("C:\\tools\\claude.bat", os_name="nt") is True
+    assert _need_shell("C:\\tools\\claude.exe", os_name="nt") is False
+
+
+def test_run_job_no_shell_on_posix(tmp_path, monkeypatch):
+    # Test the _need_shell helper: POSIX always returns False regardless of extension.
+    assert _need_shell("/usr/bin/claude", os_name="posix") is False
+    assert _need_shell("claude.cmd", os_name="posix") is False

@@ -1,5 +1,4 @@
 # tests/test_app.py
-import json
 from auto_prompter.store import JobStore
 from app import create_app
 

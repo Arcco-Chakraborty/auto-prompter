@@ -1,6 +1,5 @@
 # auto_prompter/service.py
 import threading
-import time
 import uuid
 from datetime import datetime
 

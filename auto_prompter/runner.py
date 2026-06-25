@@ -1,7 +1,15 @@
+import os
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+
+
+def _need_shell(claude_path, os_name=None):
+    """Return True only on Windows when claude_path is a .cmd/.bat shim."""
+    if os_name is None:
+        os_name = os.name
+    return os_name == "nt" and claude_path.lower().endswith((".cmd", ".bat"))
 
 
 def build_command(job, claude_path):
@@ -34,7 +42,7 @@ def run_job(job, logs_dir, which=shutil.which, run=subprocess.run):
         out.write(f"$ {' '.join(argv)}  (cwd={cwd})\n\n")
         out.flush()
         try:
-            proc = run(argv, cwd=cwd, stdout=out, stderr=out, text=True)
+            proc = run(argv, cwd=cwd, stdout=out, stderr=out, text=True, shell=_need_shell(claude_path))
             status = "done" if proc.returncode == 0 else "failed"
         except Exception as exc:  # noqa: BLE001 - record any launch failure
             out.write(f"\nERROR launching claude: {exc}\n")
