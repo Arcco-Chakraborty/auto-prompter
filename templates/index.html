@@ -1,5 +1,64 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Auto Prompter</title></head>
-<body><h1>Auto Prompter</h1></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auto Prompter</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Auto Prompter</h1>
+  <p class="note">Prompts fire only while <code>python app.py</code> is running.</p>
+
+  <section class="card">
+    <h2>New scheduled prompt</h2>
+    <form id="job-form">
+      <label>Prompt
+        <textarea name="prompt" rows="3" required></textarea>
+      </label>
+
+      <fieldset>
+        <legend>Target</legend>
+        <label><input type="radio" name="target_type" value="new" checked> New chat in folder</label>
+        <input type="text" name="folder" placeholder="/absolute/path/to/project">
+        <label><input type="radio" name="target_type" value="existing"> Existing chat</label>
+        <select name="session"></select>
+        <button type="button" id="refresh-sessions">Refresh chats</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Schedule</legend>
+        <label><input type="radio" name="sched_type" value="once" checked> One-time</label>
+        <input type="datetime-local" name="run_at">
+        <label><input type="radio" name="sched_type" value="recurring"> Recurring</label>
+        <select id="cron-preset">
+          <option value="">— preset —</option>
+          <option value="0 9 * * *">Every day at 09:00</option>
+          <option value="0 * * * *">Every hour</option>
+          <option value="*/30 * * * *">Every 30 minutes</option>
+          <option value="0 9 * * 1">Every Monday at 09:00</option>
+        </select>
+        <input type="text" name="cron" placeholder="raw cron e.g. 0 9 * * *">
+      </fieldset>
+
+      <button type="submit">Schedule prompt</button>
+      <span id="form-error" class="error"></span>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Scheduled prompts</h2>
+    <table id="jobs-table">
+      <thead><tr><th>Prompt</th><th>Target</th><th>Next run</th><th>Status</th><th>Last run</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Existing chats</h2>
+    <ul id="sessions-list"></ul>
+  </section>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
 </html>

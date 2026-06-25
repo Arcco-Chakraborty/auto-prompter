@@ -1,0 +1,14 @@
+body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; color: #1c1c1c; }
+h1 { margin-bottom: .25rem; }
+.note { color: #666; margin-top: 0; }
+.card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+label { display: block; margin: .5rem 0 .25rem; }
+textarea, input[type=text], select, input[type=datetime-local] { width: 100%; max-width: 480px; padding: .4rem; box-sizing: border-box; }
+fieldset { margin: .75rem 0; }
+button { padding: .45rem .9rem; margin-top: .5rem; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; border-bottom: 1px solid #eee; padding: .4rem; font-size: .9rem; vertical-align: top; }
+.error { color: #b00020; margin-left: .5rem; }
+.status-done { color: #0a7; } .status-failed { color: #b00020; } .status-pending { color: #888; }
+#sessions-list li { margin: .35rem 0; font-size: .9rem; }
+.muted { color: #888; }
