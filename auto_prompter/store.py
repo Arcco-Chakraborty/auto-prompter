@@ -32,9 +32,10 @@ class JobStore:
             return self._read()
 
     def get(self, job_id):
-        for job in self._read():
-            if job.get("id") == job_id:
-                return job
+        with self._lock:
+            for job in self._read():
+                if job.get("id") == job_id:
+                    return job
         return None
 
     def add(self, job):
