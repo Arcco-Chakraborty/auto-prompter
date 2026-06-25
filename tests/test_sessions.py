@@ -12,7 +12,19 @@ def _write_session(projects_dir, encoded, session_id, lines):
     return f
 
 
-def test_extracts_cwd_and_first_real_user_message(tmp_path):
+def test_prefers_ai_title_as_name(tmp_path):
+    _write_session(tmp_path, "-home-me-proj", "sess1", [
+        {"type": "user", "cwd": "/home/me/proj",
+         "message": {"role": "user", "content": "Fix the parser bug please"}},
+        {"type": "ai-title", "aiTitle": "Parser bug fix", "sessionId": "sess1"},
+    ])
+    s = discover_sessions(tmp_path)[0]
+    assert s["session_id"] == "sess1"
+    assert s["cwd"] == "/home/me/proj"
+    assert s["name"] == "Parser bug fix"
+
+
+def test_falls_back_to_first_real_user_message(tmp_path):
     _write_session(tmp_path, "-home-me-proj", "sess1", [
         {"type": "last-prompt", "sessionId": "sess1"},
         {"type": "user", "isMeta": True,
@@ -21,16 +33,30 @@ def test_extracts_cwd_and_first_real_user_message(tmp_path):
         {"type": "user", "cwd": "/home/me/proj",
          "message": {"role": "user", "content": "Fix the parser bug please"}},
     ])
-    sessions = discover_sessions(tmp_path)
-    assert len(sessions) == 1
-    s = sessions[0]
-    assert s["session_id"] == "sess1"
-    assert s["cwd"] == "/home/me/proj"
-    assert s["label"] == "Fix the parser bug please"
+    s = discover_sessions(tmp_path)[0]
+    assert s["name"] == "Fix the parser bug please"
+
+
+def test_skips_slash_commands_in_fallback(tmp_path):
+    _write_session(tmp_path, "-a", "s", [
+        {"type": "user", "cwd": "/a",
+         "message": {"role": "user",
+                     "content": "<command-name>/clear</command-name>\nclear"}},
+        {"type": "user",
+         "message": {"role": "user", "content": "actually let's debug the motor"}},
+    ])
+    assert discover_sessions(tmp_path)[0]["name"] == "actually let's debug the motor"
+
+
+def test_untitled_when_no_title_or_message(tmp_path):
+    _write_session(tmp_path, "-a", "s", [
+        {"type": "last-prompt", "cwd": "/a", "sessionId": "s"},
+    ])
+    assert discover_sessions(tmp_path)[0]["name"] == "(untitled chat)"
 
 
 def test_sorted_by_last_used_desc(tmp_path):
-    import os, time
+    import os
     f1 = _write_session(tmp_path, "-a", "old", [
         {"type": "user", "cwd": "/a", "message": {"role": "user", "content": "a"}}])
     f2 = _write_session(tmp_path, "-b", "new", [
@@ -49,9 +75,9 @@ def test_skips_non_session_files_and_missing_dir(tmp_path):
     assert discover_sessions(tmp_path / "does-not-exist") == []
 
 
-def test_label_truncated(tmp_path):
+def test_name_truncated(tmp_path):
     long = "x" * 200
     _write_session(tmp_path, "-a", "s", [
-        {"type": "user", "cwd": "/a", "message": {"role": "user", "content": long}}])
-    label = discover_sessions(tmp_path)[0]["label"]
-    assert len(label) <= 80
+        {"type": "ai-title", "aiTitle": long, "sessionId": "s"},
+        {"type": "user", "cwd": "/a", "message": {"role": "user", "content": "hi"}}])
+    assert len(discover_sessions(tmp_path)[0]["name"]) <= 80

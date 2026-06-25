@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
-LABEL_MAX = 80
+NAME_MAX = 80
+
+# Prefixes that mark a "user" line as a slash command or local-command artifact
+# rather than something a person typed as a chat message.
+_SKIP_PREFIXES = ("<local-command-caveat>", "<command-name>")
 
 
 def _default_dir():
@@ -14,14 +18,20 @@ def _is_real_user_message(obj):
     content = obj.get("message", {}).get("content")
     if not isinstance(content, str) or not content.strip():
         return False
-    if content.lstrip().startswith("<local-command-caveat>"):
+    if content.lstrip().startswith(_SKIP_PREFIXES):
         return False
     return True
 
 
 def _parse_file(path):
+    """Return the session's chat name and cwd.
+
+    Name is Claude Code's generated ``aiTitle`` when present; otherwise the
+    first real user message (skipping meta lines and slash commands).
+    """
     cwd = None
-    label = None
+    ai_title = None
+    first_msg = None
     try:
         with path.open("r", encoding="utf-8") as f:
             for line in f:
@@ -34,13 +44,16 @@ def _parse_file(path):
                     continue
                 if cwd is None and isinstance(obj.get("cwd"), str):
                     cwd = obj["cwd"]
-                if label is None and _is_real_user_message(obj):
-                    label = obj["message"]["content"].strip()[:LABEL_MAX]
-                if cwd and label:
+                if obj.get("type") == "ai-title" and isinstance(obj.get("aiTitle"), str):
+                    ai_title = obj["aiTitle"].strip()
+                elif first_msg is None and _is_real_user_message(obj):
+                    first_msg = obj["message"]["content"].strip()
+                if cwd and ai_title:
                     break
     except OSError:
         return None
-    return {"cwd": cwd or "", "label": label or "(no message)"}
+    name = ai_title or first_msg or "(untitled chat)"
+    return {"cwd": cwd or "", "name": name[:NAME_MAX]}
 
 
 def discover_sessions(projects_dir=None):
@@ -55,7 +68,7 @@ def discover_sessions(projects_dir=None):
         results.append({
             "session_id": jsonl.stem,
             "cwd": parsed["cwd"],
-            "label": parsed["label"],
+            "name": parsed["name"],
             "last_used": jsonl.stat().st_mtime,
         })
     results.sort(key=lambda s: s["last_used"], reverse=True)

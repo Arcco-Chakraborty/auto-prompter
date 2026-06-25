@@ -6,6 +6,10 @@ async function fetchJSON(url, opts) {
 
 function fmt(dt) { return dt ? dt.replace("T", " ") : "—"; }
 
+function fmtEpoch(secs) {
+  return secs ? new Date(secs * 1000).toLocaleString() : "—";
+}
+
 async function loadSessions() {
   const { data } = await fetchJSON("/api/sessions");
   const select = document.querySelector("select[name=session]");
@@ -13,13 +17,20 @@ async function loadSessions() {
   select.innerHTML = "";
   list.innerHTML = "";
   data.forEach((s) => {
+    const when = fmtEpoch(s.last_used);
+
     const opt = document.createElement("option");
     opt.value = JSON.stringify({ id: s.session_id, folder: s.cwd });
-    opt.textContent = `${s.label}  —  ${s.cwd}`;
+    opt.textContent = `${s.name}  —  ${when}`;
     select.appendChild(opt);
 
     const li = document.createElement("li");
-    li.innerHTML = `<strong>${s.label}</strong><br><span class="muted">${s.cwd} · ${s.session_id}</span>`;
+    const name = document.createElement("strong");
+    name.textContent = s.name;
+    const meta = document.createElement("span");
+    meta.className = "muted";
+    meta.textContent = `${when} · ${s.cwd}`;
+    li.append(name, document.createElement("br"), meta);
     list.appendChild(li);
   });
 }
