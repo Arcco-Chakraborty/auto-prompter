@@ -20,7 +20,18 @@
       <fieldset>
         <legend>Target</legend>
         <label><input type="radio" name="target_type" value="new" checked> New chat in folder</label>
-        <input type="text" name="folder" placeholder="/absolute/path/to/project">
+        <div class="folder-row">
+          <input type="text" name="folder" placeholder="/absolute/path/to/project">
+          <button type="button" id="browse-btn">Browse…</button>
+        </div>
+        <div id="browser" class="browser" hidden>
+          <div class="browser-path" id="browser-path"></div>
+          <ul id="browser-list"></ul>
+          <div class="browser-actions">
+            <button type="button" id="browser-select">Select this folder</button>
+            <button type="button" id="browser-cancel">Cancel</button>
+          </div>
+        </div>
         <label><input type="radio" name="target_type" value="existing"> Existing chat</label>
         <select name="session"></select>
         <button type="button" id="refresh-sessions">Refresh chats</button>

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
+from auto_prompter import browse as browse_mod
 from auto_prompter import sessions as sessions_mod
 from auto_prompter.service import Scheduler, create_job
 from auto_prompter.store import JobStore
@@ -19,6 +20,10 @@ def create_app(store, logs_dir):
     @app.get("/api/sessions")
     def api_sessions():
         return jsonify(sessions_mod.discover_sessions())
+
+    @app.get("/api/browse")
+    def api_browse():
+        return jsonify(browse_mod.list_dir(request.args.get("path") or None))
 
     @app.get("/api/jobs")
     def api_jobs():

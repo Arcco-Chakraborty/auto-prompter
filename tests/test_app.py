@@ -10,6 +10,14 @@ def _client(tmp_path):
     return app.test_client(), store
 
 
+def test_browse_endpoint_lists_dirs(tmp_path):
+    (tmp_path / "proj").mkdir()
+    client, _ = _client(tmp_path)
+    data = client.get(f"/api/browse?path={tmp_path}").get_json()
+    assert data["path"] == str(tmp_path.resolve())
+    assert [d["name"] for d in data["dirs"]] == ["proj"]
+
+
 def test_create_and_list_job(tmp_path):
     client, _ = _client(tmp_path)
     resp = client.post("/api/jobs", json={

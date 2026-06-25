@@ -79,6 +79,48 @@ document.getElementById("cron-preset").addEventListener("change", (e) => {
   if (e.target.value) document.querySelector("input[name=cron]").value = e.target.value;
 });
 
+// --- Folder browser ---
+let browserPath = null;
+
+async function openBrowser(path) {
+  const { data } = await fetchJSON(`/api/browse?path=${encodeURIComponent(path || "")}`);
+  browserPath = data.path;
+  document.getElementById("browser-path").textContent = data.path;
+  const ul = document.getElementById("browser-list");
+  ul.innerHTML = "";
+  const addRow = (label, dirPath) => {
+    const li = document.createElement("li");
+    li.textContent = label;
+    li.dataset.path = dirPath;
+    ul.appendChild(li);
+  };
+  if (data.parent) addRow("📁 ..", data.parent);
+  data.dirs.forEach((d) => addRow("📁 " + d.name, d.path));
+  if (!data.dirs.length && !data.parent) addRow("(no sub-folders)", "");
+}
+
+document.getElementById("browse-btn").addEventListener("click", () => {
+  document.getElementById("browser").hidden = false;
+  openBrowser(document.querySelector("input[name=folder]").value.trim());
+});
+
+document.getElementById("browser-list").addEventListener("click", (e) => {
+  const li = e.target.closest("li");
+  if (li && li.dataset.path) openBrowser(li.dataset.path);
+});
+
+document.getElementById("browser-select").addEventListener("click", () => {
+  if (browserPath) {
+    document.querySelector("input[name=folder]").value = browserPath;
+    document.querySelector("input[name=target_type][value=new]").checked = true;
+  }
+  document.getElementById("browser").hidden = true;
+});
+
+document.getElementById("browser-cancel").addEventListener("click", () => {
+  document.getElementById("browser").hidden = true;
+});
+
 document.getElementById("job-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target;
