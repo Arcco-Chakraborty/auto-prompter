@@ -15,13 +15,24 @@ def _write_session(projects_dir, encoded, session_id, lines):
 def test_prefers_ai_title_as_name(tmp_path):
     _write_session(tmp_path, "-home-me-proj", "sess1", [
         {"type": "user", "cwd": "/home/me/proj",
+         "permissionMode": "bypassPermissions",
          "message": {"role": "user", "content": "Fix the parser bug please"}},
+        {"type": "assistant",
+         "message": {"role": "assistant", "model": "claude-opus-4-8",
+                     "content": []}},
+        {"type": "assistant",
+         "message": {"role": "assistant", "model": "<synthetic>",
+                     "content": []}},
         {"type": "ai-title", "aiTitle": "Parser bug fix", "sessionId": "sess1"},
     ])
     s = discover_sessions(tmp_path)[0]
     assert s["session_id"] == "sess1"
     assert s["cwd"] == "/home/me/proj"
     assert s["name"] == "Parser bug fix"
+    assert s["settings"] == {
+        "permission_mode": "bypassPermissions",
+        "model": "claude-opus-4-8",
+    }
 
 
 def test_falls_back_to_first_real_user_message(tmp_path):

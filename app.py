@@ -9,9 +9,24 @@ from auto_prompter.service import Scheduler, create_job
 from auto_prompter.store import JobStore
 
 
+def _is_within(path, parent):
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
 def create_app(store, logs_dir):
     app = Flask(__name__)
-    logs_dir = Path(logs_dir)
+    # This is a local development-style app. Keep templates and static assets
+    # in sync while it is running so editing one cannot leave the browser with
+    # old HTML and new JavaScript.
+    app.config.update(
+        TEMPLATES_AUTO_RELOAD=True,
+        SEND_FILE_MAX_AGE_DEFAULT=0,
+    )
+    logs_dir = Path(logs_dir).resolve()
 
     @app.get("/")
     def index():
@@ -56,8 +71,11 @@ def create_app(store, logs_dir):
         job = store.get(job_id)
         if not job or not job.get("last_log"):
             return jsonify({"error": "no log"}), 404
+        log_path = Path(job["last_log"]).resolve()
+        if not _is_within(log_path, logs_dir):
+            return jsonify({"error": "invalid log path"}), 400
         try:
-            text = Path(job["last_log"]).read_text(encoding="utf-8")
+            text = log_path.read_text(encoding="utf-8")
         except OSError:
             text = "(log file missing)"
         return jsonify({"log": text})

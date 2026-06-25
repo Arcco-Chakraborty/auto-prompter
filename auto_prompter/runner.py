@@ -1,8 +1,11 @@
 import os
+import shlex
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+
+DEFAULT_TIMEOUT_SECONDS = 3600
 
 
 def _need_shell(claude_path, os_name=None):
@@ -21,13 +24,31 @@ def build_command(job, claude_path):
     else:
         argv = [claude_path, "-p", prompt]
         cwd = target.get("folder") or None
+
+    # Append CLI settings from job configuration
+    settings = job.get("settings") or {}
+    permission_mode = settings.get("permission_mode", "").strip()
+    if permission_mode == "bypassPermissions" or settings.get(
+            "dangerously_skip_permissions"):
+        argv.append("--dangerously-skip-permissions")
+    elif permission_mode:
+        argv.extend(["--permission-mode", permission_mode])
+    if settings.get("verbose"):
+        argv.append("--verbose")
+    model = settings.get("model", "").strip()
+    if model:
+        argv.extend(["--model", model])
+    extra = settings.get("extra_flags", "").strip()
+    if extra:
+        argv.extend(shlex.split(extra, posix=os.name != "nt"))
+
     return argv, cwd
 
 
 def run_job(job, logs_dir, which=shutil.which, run=subprocess.run):
     logs_dir = Path(logs_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)
-    ran_at = datetime.now().isoformat(timespec="seconds")
+    ran_at = datetime.now().astimezone().isoformat(timespec="seconds")
     stamp = ran_at.replace(":", "").replace("-", "")
     log_file = logs_dir / f"{job['id']}-{stamp}.log"
 
@@ -38,12 +59,26 @@ def run_job(job, logs_dir, which=shutil.which, run=subprocess.run):
         return {"status": "failed", "log_path": str(log_file), "ran_at": ran_at}
 
     argv, cwd = build_command(job, claude_path)
+    timeout_seconds = (job.get("settings") or {}).get(
+        "timeout_seconds", DEFAULT_TIMEOUT_SECONDS)
     with log_file.open("w", encoding="utf-8") as out:
         out.write(f"$ {' '.join(argv)}  (cwd={cwd})\n\n")
         out.flush()
         try:
-            proc = run(argv, cwd=cwd, stdout=out, stderr=out, text=True, shell=_need_shell(claude_path))
+            proc = run(
+                argv,
+                cwd=cwd,
+                stdout=out,
+                stderr=out,
+                text=True,
+                shell=_need_shell(claude_path),
+                timeout=timeout_seconds,
+            )
             status = "done" if proc.returncode == 0 else "failed"
+        except subprocess.TimeoutExpired:
+            out.write(
+                f"\nERROR: claude exceeded the {timeout_seconds}-second timeout.\n")
+            status = "failed"
         except Exception as exc:  # noqa: BLE001 - record any launch failure
             out.write(f"\nERROR launching claude: {exc}\n")
             status = "failed"

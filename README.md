@@ -17,6 +17,10 @@ Cross-platform: Linux, macOS, and Windows.
   can click through directories instead of typing a path.
 - **Existing chat** targeting — auto-discovers your past Claude Code sessions and
   lists them by their generated **chat name** and **last-used time**.
+- **Session setting inheritance** — resumed chats can auto-fill their recorded
+  permission mode and model, with editable overrides before scheduling.
+- **All local drives** in the folder browser on Windows, plus visible Close,
+  Cancel, and Escape-key dismissal.
 - **Jobs dashboard** — see next-run time, status, last run, view captured
   output, and enable/disable or delete any job.
 
@@ -77,11 +81,15 @@ Then open **http://localhost:5000** in your browser.
    - *New chat in folder* — type a path or click **Browse…** to pick a folder.
    - *Existing chat* — choose one from the dropdown (refresh the list if you
      just used Claude Code).
-3. **Pick a schedule:**
+3. **Review Claude CLI settings.** For an existing chat, the app detects and
+   auto-fills the session's recorded permission mode and model. You can disable
+   auto-fill or edit either setting. Verbose mode, extra flags, and a run
+   timeout are also available.
+4. **Pick a schedule:**
    - *One-time* — choose a date and time.
    - *Recurring* — pick a preset (e.g. "Every day at 09:00") or type a raw cron
-     expression like `0 9 * * *`.
-4. Click **Schedule prompt**. It appears in the jobs table and fires at its time.
+      expression like `0 9 * * *`.
+5. Click **Schedule prompt**. It appears in the jobs table and fires at its time.
 
 Captured output for each run is saved under `logs/` and viewable from the
 **Log** button on each job.
@@ -89,7 +97,8 @@ Captured output for each run is saved under `logs/` and viewable from the
 ## How it works
 
 - A single Python process runs a **Flask web server** plus a **background
-  scheduler thread** that wakes every ~15 seconds and fires any due jobs.
+  scheduler thread** that wakes every ~15 seconds and dispatches due jobs in
+  independent worker threads.
 - Jobs are stored in `jobs.json` (created next to `app.py` at runtime).
 - Existing chats are discovered by reading Claude Code's session files under
   `~/.claude/projects/` (`%USERPROFILE%\.claude\projects` on Windows).
@@ -108,6 +117,11 @@ pytest
 
 - Fires only while the app is running (see above).
 - It sends prompts; it does not read Claude's replies or act on them.
+- Failed one-time jobs are terminal and do not retry automatically. Recurring
+  jobs remain scheduled after a failed run.
+- Each Claude run has a configurable timeout (one hour by default).
+- One-time schedules are stored as UTC, while recurring cron schedules retain
+  the browser's IANA timezone for daylight-saving-safe calculation.
 - The Windows `.cmd` launch path is implemented (Claude's CLI shim is launched
   via the shell on Windows) but was developed on Linux — if a scheduled run
   fails on Windows, check the job's **Log** for the captured error.

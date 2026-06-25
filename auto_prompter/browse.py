@@ -3,7 +3,24 @@
 This tool runs locally, so the server browses the user's own machine and
 returns absolute paths the `claude` CLI can use as a working directory.
 """
+import platform
+import string
 from pathlib import Path
+
+
+def list_drives():
+    """Return available filesystem roots (drive letters on Windows, / on POSIX)."""
+    if platform.system() == "Windows":
+        drives = []
+        for letter in string.ascii_uppercase:
+            root = Path(f"{letter}:\\")
+            try:
+                if root.exists():
+                    drives.append({"name": f"{letter}:\\", "path": f"{letter}:\\"})
+            except OSError:
+                continue
+        return drives
+    return [{"name": "/", "path": "/"}]
 
 
 def list_dir(path=None):
@@ -38,4 +55,4 @@ def list_dir(path=None):
         pass
 
     parent = None if base.parent == base else str(base.parent)
-    return {"path": str(base), "parent": parent, "dirs": dirs}
+    return {"path": str(base), "parent": parent, "dirs": dirs, "drives": list_drives()}

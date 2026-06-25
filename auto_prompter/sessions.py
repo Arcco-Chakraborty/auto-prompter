@@ -2,6 +2,14 @@ import json
 from pathlib import Path
 
 NAME_MAX = 80
+PERMISSION_MODES = {
+    "acceptEdits",
+    "auto",
+    "bypassPermissions",
+    "default",
+    "dontAsk",
+    "plan",
+}
 
 # Prefixes that mark a "user" line as a slash command or local-command artifact
 # rather than something a person typed as a chat message.
@@ -24,14 +32,18 @@ def _is_real_user_message(obj):
 
 
 def _parse_file(path):
-    """Return the session's chat name and cwd.
+    """Return the session's chat name, cwd, and reusable CLI settings.
 
     Name is Claude Code's generated ``aiTitle`` when present; otherwise the
-    first real user message (skipping meta lines and slash commands).
+    first real user message (skipping meta lines and slash commands). Claude's
+    session log also records permission mode and model, which can be inherited
+    when scheduling a resumed chat.
     """
     cwd = None
     ai_title = None
     first_msg = None
+    permission_mode = None
+    model = None
     try:
         with path.open("r", encoding="utf-8") as f:
             for line in f:
@@ -48,12 +60,25 @@ def _parse_file(path):
                     ai_title = obj["aiTitle"].strip()
                 elif first_msg is None and _is_real_user_message(obj):
                     first_msg = obj["message"]["content"].strip()
-                if cwd and ai_title:
-                    break
+                candidate_mode = obj.get("permissionMode")
+                if candidate_mode in PERMISSION_MODES:
+                    permission_mode = candidate_mode
+                message = obj.get("message")
+                if isinstance(message, dict):
+                    candidate_model = message.get("model")
+                    if isinstance(candidate_model, str):
+                        candidate_model = candidate_model.strip()
+                        if candidate_model and not candidate_model.startswith("<"):
+                            model = candidate_model
     except OSError:
         return None
     name = ai_title or first_msg or "(untitled chat)"
-    return {"cwd": cwd or "", "name": name[:NAME_MAX]}
+    settings = {}
+    if permission_mode:
+        settings["permission_mode"] = permission_mode
+    if model:
+        settings["model"] = model
+    return {"cwd": cwd or "", "name": name[:NAME_MAX], "settings": settings}
 
 
 def discover_sessions(projects_dir=None):
@@ -69,6 +94,7 @@ def discover_sessions(projects_dir=None):
             "session_id": jsonl.stem,
             "cwd": parsed["cwd"],
             "name": parsed["name"],
+            "settings": parsed["settings"],
             "last_used": jsonl.stat().st_mtime,
         })
     results.sort(key=lambda s: s["last_used"], reverse=True)

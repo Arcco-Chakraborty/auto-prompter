@@ -25,7 +25,12 @@
           <button type="button" id="browse-btn">Browse…</button>
         </div>
         <div id="browser" class="browser" hidden>
-          <div class="browser-path" id="browser-path"></div>
+          <div class="browser-header">
+            <div class="browser-path" id="browser-path"></div>
+            <button type="button" id="browser-close" class="browser-close-btn"
+                    aria-label="Close folder browser">Close</button>
+          </div>
+          <div id="browser-drives" class="browser-drives"></div>
           <ul id="browser-list"></ul>
           <div class="browser-actions">
             <button type="button" id="browser-select">Select this folder</button>
@@ -35,6 +40,46 @@
         <label><input type="radio" name="target_type" value="existing"> Existing chat</label>
         <select name="session"></select>
         <button type="button" id="refresh-sessions">Refresh chats</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Claude CLI Settings</legend>
+        <div class="session-settings-row">
+          <label class="toggle-label">
+            <input type="checkbox" name="inherit_session_settings" checked>
+            <span>Auto-fill settings from selected existing chat</span>
+          </label>
+          <button type="button" id="apply-session-settings">Apply detected settings</button>
+        </div>
+        <p id="session-settings-preview" class="settings-preview">
+          Select an existing chat to detect its permission mode and model.
+        </p>
+        <div class="settings-grid">
+          <label>Permission mode
+            <select name="permission_mode">
+              <option value="">Use Claude default</option>
+              <option value="default">Default</option>
+              <option value="acceptEdits">Accept edits</option>
+              <option value="auto">Auto</option>
+              <option value="dontAsk">Don't ask</option>
+              <option value="plan">Plan</option>
+              <option value="bypassPermissions">Dangerously skip permissions</option>
+            </select>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="verbose">
+            <span>--verbose</span>
+          </label>
+          <label>Model
+            <input type="text" name="model" placeholder="e.g. sonnet or a full model ID">
+          </label>
+          <label>Run timeout (seconds)
+            <input type="number" name="timeout_seconds" value="3600" min="1" max="86400">
+          </label>
+          <label>Extra CLI flags
+            <input type="text" name="extra_flags" placeholder="e.g. --output-format json">
+          </label>
+        </div>
       </fieldset>
 
       <fieldset>

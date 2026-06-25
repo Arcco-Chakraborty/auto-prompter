@@ -36,3 +36,18 @@ def test_nonexistent_falls_back_to_home(tmp_path):
 
 def test_none_defaults_to_home():
     assert list_dir()["path"] == str(Path.home().resolve())
+
+
+def test_list_drives_returns_list():
+    from auto_prompter.browse import list_drives
+    drives = list_drives()
+    assert isinstance(drives, list)
+    assert len(drives) >= 1
+    assert all("name" in d and "path" in d for d in drives)
+
+
+def test_list_dir_includes_drives(tmp_path):
+    result = list_dir(tmp_path)
+    assert "drives" in result
+    assert isinstance(result["drives"], list)
+    assert len(result["drives"]) >= 1
