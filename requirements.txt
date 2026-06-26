@@ -2,3 +2,4 @@ flask==3.0.3
 croniter==6.2.2
 pytest==8.2.0
 tzdata==2026.2
+gunicorn==23.0.0
