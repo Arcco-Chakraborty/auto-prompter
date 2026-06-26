@@ -26,6 +26,7 @@ def check_password(raw):
     return check_password_hash(hashed, raw)
 
 
+# Requires a view named "login" to be registered (see app.py).
 def login_required(view):
     """Redirect unauthenticated requests to the login page when gating is on."""
     @wraps(view)
