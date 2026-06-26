@@ -2,6 +2,7 @@
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
@@ -102,7 +103,9 @@ def create_app(store, logs_dir):
         if request.method == "POST":
             if auth_mod.check_password(request.form.get("password", "")):
                 session["authed"] = True
-                nxt = request.args.get("next") or url_for("index")
+                nxt = request.args.get("next") or ""
+                if not nxt or urlparse(nxt).netloc:   # reject absolute/protocol-relative URLs
+                    nxt = url_for("index")
                 return redirect(nxt)
             return render_template("login.html", error="Invalid password"), 401
         return render_template("login.html")

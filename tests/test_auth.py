@@ -4,7 +4,9 @@ import os
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
+from app import create_app
 from auto_prompter import auth
+from auto_prompter.store import JobStore
 
 
 def test_gate_off_by_default(monkeypatch):
@@ -79,10 +81,6 @@ def test_login_required_allows_when_gated_and_authed(monkeypatch):
     assert resp.data == b"secret"
 
 
-from auto_prompter.store import JobStore
-from app import create_app
-
-
 def _client(tmp_path, monkeypatch, password="s3cret"):
     monkeypatch.setenv("AUTO_PROMPTER_AUTH", "1")
     monkeypatch.setenv("APP_PASSWORD_HASH", generate_password_hash(password))
@@ -114,9 +112,23 @@ def test_login_then_access(tmp_path, monkeypatch):
 
 def test_wrong_password_rejected(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    resp = client.post("/login", data={"password": "nope"}, follow_redirects=True)
+    resp = client.post("/login", data={"password": "nope"})
+    assert resp.status_code == 401
     assert b"Invalid password" in resp.data
     assert client.get("/").status_code == 302
+
+
+def test_login_redirects_to_next(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/login?next=/api/jobs", data={"password": "s3cret"})
+    assert resp.status_code == 302
+    assert "/api/jobs" in resp.headers["Location"]
+
+
+def test_login_ignores_absolute_next(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/login?next=https://evil.com", data={"password": "s3cret"})
+    assert "evil.com" not in resp.headers["Location"]
 
 
 def test_logout_clears_session(tmp_path, monkeypatch):
