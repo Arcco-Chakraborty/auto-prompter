@@ -6,3 +6,4 @@ jobs.json
 logs/
 *.log
 .pytest_cache/
+.env
