@@ -1,0 +1,15 @@
+# deploy/auto-prompter.service -> /etc/systemd/system/auto-prompter.service
+[Unit]
+Description=Auto Prompter (Flask + scheduler)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/auto-prompter
+EnvironmentFile=/home/ubuntu/auto-prompter/.env
+ExecStart=/home/ubuntu/auto-prompter/venv/bin/gunicorn -w 1 -b 127.0.0.1:5055 --timeout 120 wsgi:app
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
