@@ -131,6 +131,12 @@ def test_login_ignores_absolute_next(tmp_path, monkeypatch):
     assert "evil.com" not in resp.headers["Location"]
 
 
+def test_login_ignores_backslash_next(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/login?next=/\\evil.com", data={"password": "s3cret"})
+    assert "evil.com" not in resp.headers["Location"]
+
+
 def test_logout_clears_session(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     client.post("/login", data={"password": "s3cret"})
