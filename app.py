@@ -1,8 +1,11 @@
 # app.py
+import os
+import secrets
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
+from auto_prompter import auth as auth_mod
 from auto_prompter import browse as browse_mod
 from auto_prompter import sessions as sessions_mod
 from auto_prompter.service import Scheduler, create_job
@@ -19,6 +22,12 @@ def _is_within(path, parent):
 
 def create_app(store, logs_dir):
     app = Flask(__name__)
+    app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("AUTO_PROMPTER_HTTPS") == "1",
+    )
     # This is a local development-style app. Keep templates and static assets
     # in sync while it is running so editing one cannot leave the browser with
     # old HTML and new JavaScript.
@@ -29,22 +38,27 @@ def create_app(store, logs_dir):
     logs_dir = Path(logs_dir).resolve()
 
     @app.get("/")
+    @auth_mod.login_required
     def index():
         return render_template("index.html")
 
     @app.get("/api/sessions")
+    @auth_mod.login_required
     def api_sessions():
         return jsonify(sessions_mod.discover_sessions())
 
     @app.get("/api/browse")
+    @auth_mod.login_required
     def api_browse():
         return jsonify(browse_mod.list_dir(request.args.get("path") or None))
 
     @app.get("/api/jobs")
+    @auth_mod.login_required
     def api_jobs():
         return jsonify(store.list())
 
     @app.post("/api/jobs")
+    @auth_mod.login_required
     def api_create_job():
         data = request.get_json(force=True, silent=True) or {}
         job, err = create_job(store, data)
@@ -53,12 +67,14 @@ def create_app(store, logs_dir):
         return jsonify(job), 201
 
     @app.delete("/api/jobs/<job_id>")
+    @auth_mod.login_required
     def api_delete_job(job_id):
         if store.delete(job_id):
             return jsonify({"ok": True})
         return jsonify({"error": "not found"}), 404
 
     @app.post("/api/jobs/<job_id>/toggle")
+    @auth_mod.login_required
     def api_toggle_job(job_id):
         job = store.get(job_id)
         if not job:
@@ -67,6 +83,7 @@ def create_app(store, logs_dir):
         return jsonify(updated)
 
     @app.get("/api/jobs/<job_id>/log")
+    @auth_mod.login_required
     def api_job_log(job_id):
         job = store.get(job_id)
         if not job or not job.get("last_log"):
@@ -79,6 +96,21 @@ def create_app(store, logs_dir):
         except OSError:
             text = "(log file missing)"
         return jsonify({"log": text})
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if request.method == "POST":
+            if auth_mod.check_password(request.form.get("password", "")):
+                session["authed"] = True
+                nxt = request.args.get("next") or url_for("index")
+                return redirect(nxt)
+            return render_template("login.html", error="Invalid password"), 401
+        return render_template("login.html")
+
+    @app.post("/logout")
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
 
     return app
 

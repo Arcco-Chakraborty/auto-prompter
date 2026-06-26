@@ -77,3 +77,50 @@ def test_login_required_allows_when_gated_and_authed(monkeypatch):
     resp = client.get("/protected")
     assert resp.status_code == 200
     assert resp.data == b"secret"
+
+
+from auto_prompter.store import JobStore
+from app import create_app
+
+
+def _client(tmp_path, monkeypatch, password="s3cret"):
+    monkeypatch.setenv("AUTO_PROMPTER_AUTH", "1")
+    monkeypatch.setenv("APP_PASSWORD_HASH", generate_password_hash(password))
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    store = JobStore(tmp_path / "jobs.json")
+    app = create_app(store, tmp_path / "logs")
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_protected_route_redirects_to_login(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.get("/")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]
+
+
+def test_api_route_protected(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    assert client.get("/api/jobs").status_code == 302
+
+
+def test_login_then_access(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/login", data={"password": "s3cret"})
+    assert resp.status_code == 302
+    assert client.get("/").status_code == 200
+
+
+def test_wrong_password_rejected(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    resp = client.post("/login", data={"password": "nope"}, follow_redirects=True)
+    assert b"Invalid password" in resp.data
+    assert client.get("/").status_code == 302
+
+
+def test_logout_clears_session(tmp_path, monkeypatch):
+    client = _client(tmp_path, monkeypatch)
+    client.post("/login", data={"password": "s3cret"})
+    client.post("/logout")
+    assert client.get("/").status_code == 302
